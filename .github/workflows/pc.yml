@@ -1,0 +1,30 @@
+name: PC Windows
+on:
+  workflow_dispatch:
+    inputs:
+      minutos:
+        default: "350"
+jobs:
+  pc:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          version: latest
+      - shell: pwsh
+        env:
+          RDP_PASSWORD: ${{ secrets.RDP_PASSWORD }}
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText $env:RDP_PASSWORD -Force)
+      - shell: pwsh
+        run: |
+          $min = [Math]::Min([int]"${{ inputs.minutos }}", 350)
+          Write-Host "IP: $(tailscale ip -4)"
+          Start-Sleep -Seconds ($min * 60)
